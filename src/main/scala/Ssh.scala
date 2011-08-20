@@ -30,27 +30,12 @@ class Ssh(user: String, password: String, host: String, port: Int = 22, knownHos
     // Consume its input and cleanup.
     val procd = p(channel.getInputStream() /* boom */ )
     
-    /*
-    procd: Either[, ]
-    procd.fold(
-      i => {  
-       Right((i: I) => {
-        channel.disconnect()
-        session.disconnect()
-       })
-      },
-      i => {
-        channel.disconnect()
-        session.disconnect()
-        Right(i)
-      }
-    )
-    */
-    
     // TODO channel.getExitStatus
-    channel.disconnect() // boom
-    session.disconnect() // boom
-    Right(procd)
+    val close = () => { channel.disconnect(); session.disconnect() }
+    //close() // boom x2
+    procd.fold(
+      f => null,//Right(() => { val output = f(); close(); output }),
+      output => { close(); Right(output) })
   }
     
 }

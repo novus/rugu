@@ -9,17 +9,17 @@ import java.io.{
 import scala.io.Source
 
 /** A type class for transforming the result stream of a command. */
-trait StreamProcessor[O] extends (InputStream => O) {
-  def apply(in: InputStream): O
+trait StreamProcessor[O] extends (InputStream => Either[() => O, O]) {
+  def apply(in: InputStream): Either[() => O, O]
 }
 
 object SP {
-  def managed[I](p: InputStream => I) = new StreamProcessor[Either[I, I]] {
+  def managed[I](p: InputStream => I) = new StreamProcessor[I] {
     def apply(in: InputStream) = Right(p(in))
   }
   
-  def unmanaged[I](p: InputStream => I) = new StreamProcessor[Either[I, I]] {
-    def apply(in: InputStream) = Left(p(in))
+  def unmanaged[I](p: InputStream => I) = new StreamProcessor[I] {
+    def apply(in: InputStream) = Left(() => p(in))
   }
   
   //implicit val AsBufferedReader = managed(in => new BufferedReader(new InputStreamReader(in)))

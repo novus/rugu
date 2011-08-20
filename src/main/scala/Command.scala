@@ -9,7 +9,7 @@ object `package` {
   
   class StringCommand(command: String) {
     def :|[I : StreamProcessor, O](f: I => O) = Piped(command, f)
-    def :>(file: String) = FileRedirect(command, file, false)
+    //def :>(file: String) = FileRedirect(command, file, false)
     //def :>>(file: String) = Redirected(command, file, true)
   }
 }
