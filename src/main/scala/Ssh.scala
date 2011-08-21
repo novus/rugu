@@ -55,9 +55,7 @@ class SshSession(factory: SessionFactory) {
   def remote[I, O](c: Command[I, O]): Either[Throwable, O] = {
     val (session, channel, close) = (openExec _ andThen prepareExec(c.command)_ )(())
     // TODO channel.getExitStatus
-    val procd = c(channel.getInputStream() /* boom */)
-    close() // FIXME boom
-    Right(procd)
+    allCatch.andFinally(close()).either(c(channel.getInputStream()))
   } 
 }
 
