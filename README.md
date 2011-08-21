@@ -1,7 +1,7 @@
 # rugu: a Scala DSL for SSH
 
 A REPL session, starting with the Ssh object which handles scoped connections
-and executions. More authentication methods are coming...
+and executions.
 
     import com.novus.rugu._
     

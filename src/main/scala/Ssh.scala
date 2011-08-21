@@ -33,18 +33,14 @@ class SshSession(factory: SessionFactory) {
   def apply[I, O](c: Command[I, O]) =
     remote(c)
   
-  private def openExec(u: Unit) = {
-    // Get an authorized session.
-    val session = factory(())
-    session.connect() // FIXME boom
-    // Prepare a channel for invoking shell commands.
-    val channel = session.openChannel("exec").asInstanceOf[ChannelExec]
-    (session, channel)
-  }
-  
-  /* Yield the active session, (executed) channel, and a closure to clean them up. */
-  def prepareExec(command: String)(sc: (Session, ChannelExec)) = {
-    val (s, c) = sc
+  /* Get a new, authorized session and prepare a channel for invoking
+   * shell commands. Yield the active session, (executed) channel, and a
+   * closure to clean them up.
+   */
+  def prepareExec(command: String) = {
+    val s = factory(())
+    s.connect() // FIXME boom
+    val c = s.openChannel("exec").asInstanceOf[ChannelExec]
     c.setCommand(command)
     c.setInputStream(null)
     c.setErrStream(System.err)
@@ -53,8 +49,8 @@ class SshSession(factory: SessionFactory) {
   }
   
   def remote[I, O](c: Command[I, O]): Either[Throwable, O] = {
-    val (session, channel, close) = (openExec _ andThen prepareExec(c.command)_ )(())
-    // TODO channel.getExitStatus
+    val (session, channel, close) = prepareExec(c.command)
+    // Do we care about channel.getExitStatus?
     allCatch.andFinally(close()).either(c(channel.getInputStream()))
   } 
 }
