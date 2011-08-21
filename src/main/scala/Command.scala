@@ -2,6 +2,18 @@ package com.novus.rugu
 
 import java.io.{BufferedReader, InputStream}
 
+object`package` extends LowPriorityProcessors {
+  /* Pimps for String => Command. */
+  implicit def string2Piped(s: String) = new CommandString(s)
+  implicit def string2Discarded(s: String) = new Discarded(s, implicitly[StreamProcessor[Unit]])
+  
+  class CommandString(command: String) {
+    def :|[I, O](f: I => O)(implicit ev: StreamProcessor[I]) = Piped(command, ev, f)
+    def :>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(command, file, ev, false)
+    def :>>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(command, file, ev, true)
+  }
+}
+
 /** A command to be executed in the remote shell. A Command[I, O] embodies
  *  both the command to be executed and the means by which the resulting
  *  output will be transformed.
