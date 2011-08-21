@@ -16,5 +16,11 @@ libraryDependencies ++= Seq(
 )
 
 resolvers ++= Seq(
-  "jsch" at " http://jsch.sf.net/maven2/"
+  "jsch" at " http://jsch.sf.net/maven2/",
+  "snapshots" at "http://scala-tools.org/repo-snapshots",
+  "releases" at "http://scala-tools.org/repo-releases"
 )
+
+initialCommands := "import com.novus.rugu._"
+
+scalaVersion := "2.8.1"

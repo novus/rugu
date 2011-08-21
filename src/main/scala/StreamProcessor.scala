@@ -5,32 +5,28 @@ import java.io.{
   InputStream,
   InputStreamReader
 }
-
 import scala.io.Source
 
-/** A type class for transforming the result stream of a command. */
-trait StreamProcessor[O] extends (InputStream => Either[() => O, O]) {
-  def apply(in: InputStream): Either[() => O, O]
+/** A type class for transforming the result stream of a command.
+ *  The intent for processors it to massage shell command output in some
+ *  way before passing it on.
+ */
+trait StreamProcessor[O] extends (InputStream => O) {
+  def apply(in: InputStream): O
 }
 
-object SP {
+object StreamProcessor {
   def managed[I](p: InputStream => I) = new StreamProcessor[I] {
-    def apply(in: InputStream) = Right(p(in))
+    def apply(in: InputStream) = p(in)
   }
-  
-  def unmanaged[I](p: InputStream => I) = new StreamProcessor[I] {
-    def apply(in: InputStream) = Left(() => p(in))
-  }
-  
-  //implicit val AsBufferedReader = managed(in => new BufferedReader(new InputStreamReader(in)))
-  
-  /*implicit val AsSource         = managed(in => Source.fromInputStream(in))
-  implicit val AsListString     = managed(in => AsSource(in).getLines.toList)
-  implicit val AsUnit           = managed(_ => ())
-  // TODO this is stupid.
-  implicit val AsInt            = managed(in => AsListString(in).headOption.map(_ toInt))
-  implicit val AsString         = managed(in => AsSource(in).mkString)*/
+}
+
+trait LowPriorityProcessors {
+  import StreamProcessor._
   
   implicit val AsListString     = managed(in => Source.fromInputStream(in).getLines.toList)
-  implicit val AsInputStream    = unmanaged(in => () => in)
+  implicit val AsUnit           = managed(_ => ())
+  implicit val AsString         = managed(in => Source.fromInputStream(in).mkString)
+  implicit val AsInputStream    = managed(identity)
+  implicit val AsReader         = managed(in => new BufferedReader(new InputStreamReader(in)))
 }
