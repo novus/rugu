@@ -3,23 +3,39 @@ package com.novus.rugu
 import com.jcraft.jsch._
 import scala.util.control.Exception.allCatch
 
-class Ssh(user: String, password: String, host: String, port: Int = 22, knownHosts: Option[String] = None) {
+case class Host(server: String, port: Int = 22)
+
+object Ssh {
   
-  val jsch = new JSch()
-  knownHosts.foreach(jsch.setKnownHosts)
-  // jsch.addIdentity("/path/to/private_key")
+  def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None) = {
+    val jsch = new JSch()
+    knownHostsFile.foreach(jsch.setKnownHosts)
+    
+    val factoryBase =
+      (_:Unit) => jsch.getSession(auth.username, host.server, host.port)
+    
+    val factory = auth match {
+      case UsernameAndPassword(u, p) =>
+        factoryBase andThen (s => { s.setPassword(p); s })
+      case PrivateKeyFile(u, keyFile, keyPass) =>
+        keyPass match {
+          case Some(p) => jsch.addIdentity(keyFile, p)
+          case None => jsch.addIdentity(keyFile)
+        }
+        factoryBase
+    }
+    new SshSession(factory)
+  }
+}
+
+class SshSession(factory: SessionFactory) {
   
   def apply[I, O](c: Command[I, O]) =
     remote(c)
   
-  def authorize(s: Session) = {
-    s.setPassword(password)
-    s
-  }
-  
   private def openExec(u: Unit) = {
     // Get an authorized session.
-    val session = authorize(jsch.getSession(user, host, port))
+    val session = factory(())
     session.connect() // FIXME boom
     // Prepare a channel for invoking shell commands.
     val channel = session.openChannel("exec").asInstanceOf[ChannelExec]
