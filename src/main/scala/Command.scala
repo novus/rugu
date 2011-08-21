@@ -2,7 +2,7 @@ package com.novus.rugu
 
 import java.io.{BufferedReader, InputStream}
 
-object`package` extends LowPriorityProcessors {
+object `package` extends LowPriorityProcessors {
   /* Pimps for String => Command. */
   implicit def string2Piped(s: String) = new CommandString(s)
   implicit def string2Discarded(s: String) = new Discarded(s, implicitly[StreamProcessor[Unit]])
