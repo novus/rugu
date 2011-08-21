@@ -8,6 +8,17 @@ and executions. More authentication methods are coming...
     scala> val ssh = new Ssh(user = "xx", password = "xx", host = "xx", knownHosts = Some("/known_hosts"))
     ssh: com.novus.rugu.Ssh = com.novus.rugu.Ssh@2a41da1c
     
+Let's start by printing the date on the server:
+    
+    scala> ssh("date --date=now" :| println)         
+    List(Sun Aug 21 01:12:11 EDT 2011)
+    res8: Either[Throwable,Unit] = Right(())
+
+Again, but this time we'll return the value as a string:
+    
+    scala> ssh("date --date=now" :| identity[String])
+    res9: Either[Throwable,String] = Right(Sun Aug 21 01:13:34 EDT 2011)
+    
 Let's add 1 to a random number from the server.
     
     scala> ssh("echo $RANDOM" :| { (_:Int) + 1 })
@@ -39,3 +50,6 @@ Concatenation (of character streams) to a file is supported:
   type class transform the raw stream into the format requred by the function.
 * A `StreamProcessor` identity instance is provided if you need to get at the
   raw stream.
+* A default `StreamProcessor[Any]` is defined to enable simple interactions like
+  piping to println. This is just an upcast of the
+  `StreamProcessor[List[String]]` instance.
