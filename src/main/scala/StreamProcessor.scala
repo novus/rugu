@@ -14,7 +14,7 @@ object StreamProcessor {
 }
 
 trait LowPriorityProcessors {
-  import StreamProcessor._
+  import StreamProcessor.managed
   
   implicit val AsListString     = managed(in => Source.fromInputStream(in).getLines.toList)
   implicit val AsUnit           = managed(_ => ())

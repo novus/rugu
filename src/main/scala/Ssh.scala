@@ -29,9 +29,8 @@ object Ssh {
 }
 
 class SshSession(factory: SessionFactory) {
-  
-  def apply[I, O](c: Command[I, O]) =
-    remote(c)
+  def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]) =
+    remote(c, sp).fold(Left(_), r => Right(r._2))
   
   /* Get a new, authorized session and prepare a channel for invoking
    * shell commands. Yield the active session, (executed) channel, and a
@@ -48,10 +47,12 @@ class SshSession(factory: SessionFactory) {
     (s, c, () => { c.disconnect(); s.disconnect() })
   }
   
-  def remote[I, O](c: Command[I, O]): Either[Throwable, O] = {
+  def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O)] = {
     val (session, channel, close) = prepareExec(c.command)
-    // Do we care about channel.getExitStatus?
-    allCatch.andFinally(close()).either(c(channel.getInputStream()))
+    allCatch.andFinally(close()).either {
+      val processed = sp(channel.getInputStream())
+      channel.getExitStatus -> c(processed)
+    }
   } 
 }
 
