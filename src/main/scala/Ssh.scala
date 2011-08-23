@@ -42,21 +42,23 @@ class SshSession(factory: SessionFactory) {
   def prepareExec[I, O](command: Command[I, O]) = {
     val s = factory(())
     s.connect() // FIXME boom
+    val bos = new java.io.ByteArrayOutputStream
     val c = s.openChannel("exec").asInstanceOf[ChannelExec]
     c.setCommand(command.command)
     c.setInputStream(command.input.map(s => new java.io.ByteArrayInputStream(s.getBytes)).getOrElse(null))
-    c.setErrStream(System.err)
+    c.setErrStream(bos)
     c.connect() // FIXME boom
-    (s, c, () => { c.disconnect(); s.disconnect() })
+    (s, c, bos, () => { c.disconnect(); s.disconnect() })
   }
   
   def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O)] = {
-    val (session, channel, close) = prepareExec(c)
+    val (session, channel, os, close) = prepareExec(c)
     allCatch.andFinally(close()).either {
       val processed = sp(channel.getInputStream())
       while(! channel.isClosed())
         Thread.`yield`()
       close()
+      
       val status = channel.getExitStatus()
       if(status == 0) status -> c(processed)
       else throw CommandFailure(status)
