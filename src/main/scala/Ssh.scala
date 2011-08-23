@@ -39,19 +39,19 @@ class SshSession(factory: SessionFactory) {
    * shell commands. Yield the active session, (executed) channel, and a
    * closure to clean them up.
    */
-  def prepareExec(command: String) = {
+  def prepareExec[I, O](command: Command[I, O]) = {
     val s = factory(())
     s.connect() // FIXME boom
     val c = s.openChannel("exec").asInstanceOf[ChannelExec]
-    c.setCommand(command)
-    c.setInputStream(null)
+    c.setCommand(command.command)
+    c.setInputStream(command.input.map(s => new java.io.ByteArrayInputStream(s.getBytes)).getOrElse(null))
     c.setErrStream(System.err)
     c.connect() // FIXME boom
     (s, c, () => { c.disconnect(); s.disconnect() })
   }
   
   def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O)] = {
-    val (session, channel, close) = prepareExec(c.command)
+    val (session, channel, close) = prepareExec(c)
     allCatch.andFinally(close()).either {
       val processed = sp(channel.getInputStream())
       while(! channel.isClosed())

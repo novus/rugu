@@ -16,14 +16,14 @@ object `package` extends LowPriorityProcessors {
   
   /* Pimps for String => Command. */
   implicit def string2Piped(s: String) = new CommandString(s)
-  implicit def string2Discarded[Unit : StreamProcessor](s: String) = Discarded(s)
+  implicit def string2Discarded[Unit : StreamProcessor](s: String) = Piped(None, s, (_:Unit) => Unit)
   
   class CommandString(command: String) {
-    def :|[O](f: String => O)(implicit ev: StreamProcessor[String]) = Piped(command, f)
-    def ::|[O](f: List[String] => O)(implicit ev: StreamProcessor[List[String]]) = Piped(command, f)
-    def :#|[I : StreamProcessor, O](f: I => O) = Piped(command, f)
-    def :>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(command, file, false)
-    def :>>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(command, file, true)
+    def :|[O](f: String => O)(implicit ev: StreamProcessor[String]) = Piped(None, command, f)
+    def ::|[O](f: List[String] => O)(implicit ev: StreamProcessor[List[String]]) = Piped(None, command, f)
+    def :#|[I : StreamProcessor, O](f: I => O) = Piped(None, command, f)
+    def :>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, false)
+    def :>>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, true)
   }
 }
 
@@ -31,22 +31,21 @@ object `package` extends LowPriorityProcessors {
  *  both the command to be executed and the means by which the resulting
  *  output will be transformed.
  */
-sealed trait Command[I, O] extends (I => O) {
+sealed trait Command[I, O] extends (I => O) { self =>
+  type C >: Command[I, O]
   val command: String
-}
-
-/** A command whose output will be discarded. */
-case class Discarded(command: String) extends Command[Unit, Unit] {
-  def apply(in: Unit) = ()
+  val input: Option[String]
+  def |:(in: String): C
 }
 
 /** Pipe a command's output to a function. */
-case class Piped[I, O](command: String, f: I => O) extends Command[I, O] {
+case class Piped[I, O](input: Option[String], command: String, f: I => O) extends Command[I, O] {
   def apply(in: I) = f(in)
+  def |:(_in: String) = copy(input = Some(_in))
 }
 
 /** Redirect output (as a character stream) to a file. */
-case class FileRedirect(command: String, name: String, append: Boolean) extends Command[BufferedInputStream, Unit] {
+case class FileRedirect(input: Option[String], command: String, name: String, append: Boolean) extends Command[BufferedInputStream, Unit] {
   def apply(in: BufferedInputStream) =
     IO(in) { r =>
       IO(new java.io.BufferedWriter(new java.io.FileWriter(name, append))) { w =>
@@ -55,4 +54,5 @@ case class FileRedirect(command: String, name: String, append: Boolean) extends 
           w.write(line)
       }
     }
+  def |:(_in: String) = copy(input = Some(_in))
 }
