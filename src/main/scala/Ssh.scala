@@ -30,7 +30,10 @@ object Ssh {
 
 class SshSession(factory: SessionFactory) {
   def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]) =
-    remote(c, sp).fold(Left(_), r => Right(r._2))
+    exec(c)(_._2).fold(Left(_), Right(_))
+  
+  def exec[I, O, OO](c: Command[I, O])(f: ((Int, O)) => OO)(implicit sp: StreamProcessor[I]) =
+    remote(c, sp).fold(Left(_), r => Right(f(r)))
   
   /* Get a new, authorized session and prepare a channel for invoking
    * shell commands. Yield the active session, (executed) channel, and a
@@ -51,6 +54,9 @@ class SshSession(factory: SessionFactory) {
     val (session, channel, close) = prepareExec(c.command)
     allCatch.andFinally(close()).either {
       val processed = sp(channel.getInputStream())
+      while(! channel.isClosed())
+        Thread.`yield`()
+      close()
       channel.getExitStatus -> c(processed)
     }
   } 

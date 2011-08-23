@@ -12,7 +12,7 @@ object `package` extends LowPriorityProcessors {
   
   /* Pimps for String => Command. */
   implicit def string2Piped(s: String) = new CommandString(s)
-  implicit def string2Discarded[Unit : StreamProcessor](s: String) = new Discarded(s) //StreamProcessor[Unit]
+  implicit def string2Discarded[Unit : StreamProcessor](s: String) = Discarded(s)
   
   class CommandString(command: String) {
     def :|[O](f: String => O)(implicit ev: StreamProcessor[String]) = Piped(command, f)
