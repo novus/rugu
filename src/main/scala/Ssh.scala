@@ -57,7 +57,8 @@ class SshSession(factory: SessionFactory) {
       while(! channel.isClosed())
         Thread.`yield`()
       close()
-      channel.getExitStatus -> c(processed)
+      if(channel.getExitStatus == 0) channel.getExitStatus -> c(processed)
+      else error("Non-zero exit status! " + channel.getExitStatus)
     }
   } 
 }
