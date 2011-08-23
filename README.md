@@ -44,6 +44,16 @@ Concatenation (of character streams) to a file is supported:
     scala> ssh("echo \"hello `hostname`!\"" :>> "host.txt" )      
     res4: Either[Throwable,Unit] = Right(())
     
+Input can be provided to the remote command:
+
+    scala> ssh("hello\nhi\nsalut" |: "grep hi" :| identity)
+    res2: Product with Either[Throwable,String] = Right(hi)
+    
+Execution will fail as a Left value if the command returns a non-zero exit status:
+
+    scala> ssh("hello world" |: "grep hi" :| identity)                               
+    res4: Product with Either[Throwable,String] = Left(java.lang.RuntimeException: Non-zero exit status! 1)
+    
 ### Notes
 
 * Operators are all prefixed with `:` for consistency and equal precedence.
