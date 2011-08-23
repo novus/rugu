@@ -1,6 +1,10 @@
 package com.novus.rugu
 
-import java.io.{BufferedReader, InputStream}
+import java.io.{
+  BufferedInputStream,
+  BufferedReader,
+  InputStream
+}
 
 object `package` extends LowPriorityProcessors {
   /** A type class for transforming the result stream of a command.
@@ -42,8 +46,8 @@ case class Piped[I, O](command: String, f: I => O) extends Command[I, O] {
 }
 
 /** Redirect output (as a character stream) to a file. */
-case class FileRedirect(command: String, name: String, append: Boolean) extends Command[InputStream, Unit] {
-  def apply(in: InputStream) =
+case class FileRedirect(command: String, name: String, append: Boolean) extends Command[BufferedInputStream, Unit] {
+  def apply(in: BufferedInputStream) =
     IO(in) { r =>
       IO(new java.io.BufferedWriter(new java.io.FileWriter(name, append))) { w =>
         var line: String = null

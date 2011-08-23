@@ -2,6 +2,7 @@ package com.novus.rugu
 
 import java.io.{
   BufferedReader,
+  BufferedInputStream,
   InputStream,
   InputStreamReader
 }
@@ -19,8 +20,7 @@ trait LowPriorityProcessors {
   implicit val AsListString     = managed(in => Source.fromInputStream(in).getLines.toList)
   implicit val AsUnit           = managed(_ => ())
   implicit val AsString         = managed(in => Source.fromInputStream(in).mkString.trim)
-  implicit val Default          = AsListString.asInstanceOf[StreamProcessor[Any]]
   implicit val AsInt            = managed(AsString(_).toInt)
-  implicit val AsInputStream    = managed(identity)
+  implicit val AsInputStream    = managed(new BufferedInputStream(_))
   implicit val AsReader         = managed(in => new BufferedReader(new InputStreamReader(in)))
 }
