@@ -32,7 +32,7 @@ class SshSession(factory: SessionFactory) {
   def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]) =
     exec(c)(identity).fold(
       Left(_),
-      { case (i, o, os) => Either.cond(i == 0, o, o -> os.toString) })
+      { case (i, o, os) => Either.cond(i == 0, o, i -> os.toString) })
   
   def exec[I, O, OO](c: Command[I, O])(f: ((Int, O, java.io.ByteArrayOutputStream)) => OO)(implicit sp: StreamProcessor[I]) =
     remote(c, sp).fold(Left(_), r => Right(f(r)))

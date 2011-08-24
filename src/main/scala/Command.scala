@@ -27,10 +27,6 @@ object `package` extends LowPriorityProcessors {
   }
 }
 
-case class CommandFailure(exitStatus: Int) extends RuntimeException {
-  override def toString = "Unacceptable exit status: %d".format(exitStatus)
-}
-
 /** A command to be executed in the remote shell. A Command[I, O] embodies
  *  both the command to be executed and the means by which the resulting
  *  output will be transformed.
