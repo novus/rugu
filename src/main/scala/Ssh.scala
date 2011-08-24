@@ -2,6 +2,7 @@ package com.novus.rugu
 
 import com.jcraft.jsch._
 import scala.util.control.Exception.allCatch
+import java.io.{ByteArrayOutputStream, ByteArrayInputStream}
 
 case class Host(server: String, port: Int = 22)
 
@@ -34,7 +35,7 @@ class SshSession(factory: SessionFactory) {
       Left(_),
       { case (i, o, os) => Either.cond(i == 0, o, i -> os.toString) })
   
-  def exec[I, O, OO](c: Command[I, O])(f: ((Int, O, java.io.ByteArrayOutputStream)) => OO)(implicit sp: StreamProcessor[I]) =
+  def exec[I, O, OO](c: Command[I, O])(f: ((Int, O, ByteArrayOutputStream)) => OO)(implicit sp: StreamProcessor[I]) =
     remote(c, sp).fold(Left(_), r => Right(f(r)))
   
   /* Get a new, authorized session and prepare a channel for invoking
@@ -44,17 +45,17 @@ class SshSession(factory: SessionFactory) {
   def prepareExec[I, O](command: Command[I, O]) = {
     val s = factory(())
     s.connect() // FIXME boom
-    val bos = new java.io.ByteArrayOutputStream
+    val bos = new ByteArrayOutputStream
     val c = s.openChannel("exec").asInstanceOf[ChannelExec]
     c.setCommand(command.command)
-    c.setInputStream(command.input.map(s => new java.io.ByteArrayInputStream(s.getBytes)).getOrElse(null))
+    c.setInputStream(command.input.map(s => new ByteArrayInputStream(s.getBytes)).getOrElse(null))
     c.setErrStream(bos)
     c.connect() // FIXME boom
     (s, c, bos, () => { c.disconnect(); s.disconnect() })
   }
   
   /* Left[Throwable] on network error. */
-  def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O, java.io.ByteArrayOutputStream)] = {
+  def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O, ByteArrayOutputStream)] = {
     val (session, channel, os, close) = prepareExec(c)
     allCatch.andFinally(close()).either {
       val processed = sp(channel.getInputStream())

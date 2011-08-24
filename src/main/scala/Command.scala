@@ -19,9 +19,9 @@ object `package` extends LowPriorityProcessors {
   implicit def string2Discarded[Unit : StreamProcessor](s: String) = Piped(None, s, (_:Unit) => Unit)
   
   class CommandString(command: String) {
+    def :#|[I : StreamProcessor, O](f: I => O) = Piped(None, command, f)
     def :|[O](f: String => O)(implicit ev: StreamProcessor[String]) = Piped(None, command, f)
     def ::|[O](f: List[String] => O)(implicit ev: StreamProcessor[List[String]]) = Piped(None, command, f)
-    def :#|[I : StreamProcessor, O](f: I => O) = Piped(None, command, f)
     def :>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, false)
     def :>>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, true)
   }

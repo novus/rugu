@@ -66,13 +66,12 @@ and the error stream as a ByteArrayOutputStream.
     
 ### Notes
 
-* Operators are all prefixed with `:` for consistency and equal precedence.
-* Pipe (`:#|`) operations are type-safe; instances of the `StreamProcessor`
+* With the exception of `|:`, operators are all prefixed with `:` for consistency and equal precedence. 
+* General pipe (`:#|`) operations are type-safe; instances of the `StreamProcessor`
   type class transform the raw stream into the format requred by the function.
 * A `StreamProcessor` identity instance is provided if you need to get at the
   raw stream.
-* The `:|` and `::|` operators use the `StreamProcessor[String]` and `StreamProcessor[List[String]]`
-  instances, respectively. Dealing with command output as a `String` or `List[String]` is
-  common enough to merit conveniences, and unfortunately scala's inferencer is
-  unable to infer the type from the handling function (because it scans from left to right).
+* The string pipe `:|` and string list pipe `::|` operators are specializations of the general pipe
+  to `String` and `List[String]`, respectively. These are mere conveniences for common formats that
+  remove inference ambiguities.
   
