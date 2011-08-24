@@ -30,9 +30,11 @@ object Ssh {
 
 class SshSession(factory: SessionFactory) {
   def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]) =
-    exec(c)(_._2).fold(Left(_), Right(_))
+    exec(c)(identity).fold(
+      Left(_),
+      { case (i, o, os) => Either.cond(i == 0, o, o -> os.toString) })
   
-  def exec[I, O, OO](c: Command[I, O])(f: ((Int, O)) => OO)(implicit sp: StreamProcessor[I]) =
+  def exec[I, O, OO](c: Command[I, O])(f: ((Int, O, java.io.ByteArrayOutputStream)) => OO)(implicit sp: StreamProcessor[I]) =
     remote(c, sp).fold(Left(_), r => Right(f(r)))
   
   /* Get a new, authorized session and prepare a channel for invoking
@@ -51,17 +53,15 @@ class SshSession(factory: SessionFactory) {
     (s, c, bos, () => { c.disconnect(); s.disconnect() })
   }
   
-  def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O)] = {
+  /* Left[Throwable] on network error. */
+  def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O, java.io.ByteArrayOutputStream)] = {
     val (session, channel, os, close) = prepareExec(c)
     allCatch.andFinally(close()).either {
       val processed = sp(channel.getInputStream())
       while(! channel.isClosed())
         Thread.`yield`()
       close()
-      
-      val status = channel.getExitStatus()
-      if(status == 0) status -> c(processed)
-      else throw CommandFailure(status)
+      (channel.getExitStatus(), c(processed), os)
     }
   } 
 }

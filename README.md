@@ -54,6 +54,16 @@ Execution will fail as a Left value if the command returns a non-zero exit statu
     scala> ssh("hello world" |: "grep hi" :| identity)                               
     res4: Product with Either[Throwable,String] = Left(java.lang.RuntimeException: Non-zero exit status! 1)
     
+You can short circuit the failure on non-zero by handling the result explicitly:
+    
+    scala> ssh.exec("fhh\nhi" |: "grep hi && dwd" :| identity) { case (s, _, e) => s -> e.toString }                      
+    res1: Product with Either[Throwable,(Int, java.lang.String)] = 
+    Right((127,bash: dwd: command not found
+    ))
+    
+The explicit handler receives a Tuple3 of the exit status, transformed result,
+and the error stream as a ByteArrayOutputStream.
+    
 ### Notes
 
 * Operators are all prefixed with `:` for consistency and equal precedence.
