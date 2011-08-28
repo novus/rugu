@@ -17,10 +17,11 @@ object StreamProcessor {
 trait LowPriorityProcessors {
   import StreamProcessor.managed
   
-  implicit val AsListString     = managed(in => Source.fromInputStream(in).getLines.toList)
-  implicit val AsUnit           = managed(_ => ())
-  implicit val AsString         = managed(in => Source.fromInputStream(in).mkString.trim)
-  implicit val AsInt            = managed(AsString(_).toInt)
-  implicit val AsInputStream    = managed(new BufferedInputStream(_))
-  implicit val AsReader         = managed(in => new BufferedReader(new InputStreamReader(in)))
+  implicit val AsListString           = managed(in => Source.fromInputStream(in).getLines.toList)
+  implicit val AsUnit                 = managed(_ => ())
+  implicit val AsString               = managed(in => Source.fromInputStream(in).mkString.trim)
+  implicit val AsInt                  = managed(AsString(_).toInt)
+  implicit val AsInputStream          = managed(i => i)
+  implicit val AsBufferedInputStream  = managed(new BufferedInputStream(_))
+  implicit val AsReader               = managed(in => new BufferedReader(new InputStreamReader(in)))
 }
