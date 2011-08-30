@@ -16,10 +16,10 @@ object Ssh {
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None) = {
     val executorBase =
       (_:Unit) => {
-        val jsch = new SSHClient()
-        knownHostsFile.foreach(f => jsch.loadKnownHosts(new java.io.File(f))) //FIXME don't load every time!
-        jsch.connect(host.name, host.port)
-        jsch
+        val ssh = new SSHClient()
+        knownHostsFile.foreach(f => ssh.loadKnownHosts(new java.io.File(f))) //FIXME don't load every time!
+        ssh.connect(host.name, host.port)
+        ssh
       }
     
     val executor = auth match {
@@ -31,7 +31,9 @@ object Ssh {
               ssh.authPassword(u, p)
               val s = ssh.startSession()
               val c = s.exec(command.command)
-              command.input.foreach { in => { val out = c.getOutputStream(); out.write(in.getBytes()); out.close(); }}
+              command.input.foreach { in =>
+                IO(c.getOutputStream()) { _.write(in.getBytes())}
+              }
               val a = f(c.getInputStream())
               val err = scala.io.Source.fromInputStream(c.getErrorStream()).mkString
               c.join(5, java.util.concurrent.TimeUnit.SECONDS) //TODO
