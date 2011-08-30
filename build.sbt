@@ -1,6 +1,6 @@
 organization := "com.novus"
 
-name := "scalash"
+name := "rugu"
 
 version := "0.1.0-SNAPSHOT"
 
@@ -20,6 +20,13 @@ resolvers ++= Seq(
   "snapshots" at "http://scala-tools.org/repo-snapshots",
   "releases" at "http://scala-tools.org/repo-releases"
 )
+
+publishTo <<= (version) { version: String =>
+    val r = Resolver.sftp("repo.novus.com", "repo.novus.com", "/nv/repo/%s".format(
+      if (version.trim().toString.endsWith("-SNAPSHOT")) "snapshots" else "releases"
+      )) as (System.getProperty("user.name"))
+    Some(r)
+}
 
 initialCommands := "import com.novus.rugu._"
 
