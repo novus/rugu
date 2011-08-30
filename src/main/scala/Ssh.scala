@@ -30,9 +30,8 @@ object Ssh {
               val ssh = executorBase(())
               ssh.authPassword(u, p)
               val s = ssh.startSession()
-              
-              command.input.foreach { in => s.getOutputStream.write(in.getBytes()) }
               val c = s.exec(command.command)
+              command.input.foreach { in => { val out = c.getOutputStream(); out.write(in.getBytes()); out.close(); }}
               val a = f(c.getInputStream())
               val err = scala.io.Source.fromInputStream(c.getErrorStream()).mkString
               c.join(5, java.util.concurrent.TimeUnit.SECONDS) //TODO
@@ -51,7 +50,7 @@ class SshSession(executor: Ssh.Executor) {
   def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]) =
     exec(c)(identity).fold(
       Left(_),
-      { case (i, o, os) => Either.cond(i == Some(0), o, i -> os.toString) })
+      { case (i, o, os) => Either.cond(i.getOrElse(-1) == 0, o, i -> os.toString) })
   
   def exec[I, O, OO](c: Command[I, O])(f: ((Option[Int], O, String)) => OO)(implicit sp: StreamProcessor[I]) =
     remote(c, sp).fold(Left(_), r => Right(f(r)))
