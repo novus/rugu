@@ -12,7 +12,6 @@ object `package` extends LowPriorityProcessors {
    *  way before passing it on.
    */
   type StreamProcessor[O] = InputStream => O
-  type SessionFactory = Unit => com.jcraft.jsch.Session
   
   /* Pimps for String => Command. */
   implicit def string2Piped(s: String) = new CommandString(s)

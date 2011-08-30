@@ -1,70 +1,68 @@
 package com.novus.rugu
 
-import com.jcraft.jsch._
+import net.schmizz.sshj.SSHClient
+import net.schmizz.sshj.connection.channel.direct.Session
 import scala.util.control.Exception.allCatch
 import java.io.{ByteArrayOutputStream, ByteArrayInputStream}
 
-case class Host(server: String, port: Int = 22)
+case class Host(name: String, port: Int = 22)
 
 object Ssh {
   
+  trait Executor {
+    def apply[A](command: Command[_, A])(f: java.io.InputStream => A): Either[Throwable, (Option[Int], A, String)]
+  }
+  
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None) = {
-    val jsch = new JSch()
-    knownHostsFile.foreach(jsch.setKnownHosts)
-    
     val factoryBase =
-      (_:Unit) => jsch.getSession(auth.username, host.server, host.port)
+      (_:Unit) => {
+        val jsch = new SSHClient()
+        knownHostsFile.foreach(f => jsch.loadKnownHosts(new java.io.File(f))) //FIXME don't load every time!
+        jsch.connect(host.name, host.port)
+        jsch
+      }
     
     val factory = auth match {
       case UsernameAndPassword(u, p) =>
-        factoryBase andThen (s => { s.setPassword(p); s })
-      case PrivateKeyFile(u, keyFile, keyPass) =>
-        keyPass match {
-          case Some(p) => jsch.addIdentity(keyFile, p)
-          case None => jsch.addIdentity(keyFile)
+        new Executor {
+          def apply[A](command: Command[_, A])(f: java.io.InputStream => A): Either[Throwable, (Option[Int], A, String)] = {
+            allCatch.either {
+              val ssh = factoryBase(())
+              ssh.authPassword(u, p)
+              val s = ssh.startSession()
+              val c = s.exec(command.command)
+              command.input.foreach { in => c.getOutputStream.write(in.getBytes()) }
+              
+              val err = scala.io.Source.fromInputStream(c.getErrorStream()).mkString
+              c.join(5, java.util.concurrent.TimeUnit.SECONDS) //TODO
+              val a = f(c.getInputStream())
+              s.close()
+              ssh.disconnect()
+              (Option(c.getExitStatus).map(_.intValue), a, err)
+            }
+          }
         }
-        factoryBase
     }
     new SshSession(factory)
   }
 }
 
-class SshSession(factory: SessionFactory) {
+class SshSession(factory: Ssh.Executor) {
   def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]) =
     exec(c)(identity).fold(
       Left(_),
-      { case (i, o, os) => Either.cond(i == 0, o, i -> os.toString) })
+      { case (i, o, os) => Either.cond(i == Some(0), o, i -> os.toString) })
   
-  def exec[I, O, OO](c: Command[I, O])(f: ((Int, O, ByteArrayOutputStream)) => OO)(implicit sp: StreamProcessor[I]) =
+  def exec[I, O, OO](c: Command[I, O])(f: ((Option[Int], O, String)) => OO)(implicit sp: StreamProcessor[I]) =
     remote(c, sp).fold(Left(_), r => Right(f(r)))
   
   /* Get a new, authorized session and prepare a channel for invoking
    * shell commands. Yield the active session, (executed) channel, and a
    * closure to clean them up.
    */
-  def prepareExec[I, O](command: Command[I, O]) = {
-    val s = factory(())
-    s.connect() // FIXME boom
-    val bos = new ByteArrayOutputStream
-    val c = s.openChannel("exec").asInstanceOf[ChannelExec]
-    c.setCommand(command.command)
-    c.setInputStream(command.input.map(s => new ByteArrayInputStream(s.getBytes)).getOrElse(null))
-    c.setErrStream(bos)
-    c.connect() // FIXME boom
-    (s, c, bos, () => { c.disconnect(); s.disconnect() })
-  }
-  
   /* Left[Throwable] on network error. */
-  def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Int, O, ByteArrayOutputStream)] = {
-    val (session, channel, os, close) = prepareExec(c)
-    allCatch.andFinally(close()).either {
-      val processed = sp(channel.getInputStream())
-      while(! channel.isClosed())
-        Thread.`yield`()
-      close()
-      (channel.getExitStatus(), c(processed), os)
-    }
-  } 
+  def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Option[Int], O, String)] =
+    factory(c) { sp andThen c }
 }
 
 object IO {

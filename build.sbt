@@ -7,7 +7,7 @@ version := "0.1.0-SNAPSHOT"
 scalaVersion := "2.9.0-1"
 
 libraryDependencies ++= Seq(
-  "com.jcraft" % "jsch" % "0.1.44",
+  "net.schmizz" % "sshj" % "0.5.0",
   "org.specs2" %% "specs2" % "1.5",
   // with Scala 2.8.1
   "org.specs2" %% "specs2-scalaz-core" % "5.1-SNAPSHOT" % "test"

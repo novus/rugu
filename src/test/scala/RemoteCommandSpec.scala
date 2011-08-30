@@ -4,7 +4,6 @@ import org.specs2.mutable._
 import java.io.ByteArrayInputStream
 
 class RemoteCommandSpec extends Specification {
-  sequential
   val props = new java.util.Properties()
   props.load(new java.io.FileInputStream("tests.properties"))
   val host = props.getProperty("localhost.host", "localhost")
@@ -24,9 +23,9 @@ class RemoteCommandSpec extends Specification {
     }
     "parse numeric output as an Int" in {
       ssh("echo 5" :#| { (_:Int) + 1 }) must_== Right(6)
-    }/*
+    }
     "feed input to grep" in {
       ssh("the\nanswer\nis" |: "grep answer" :| identity) must_== Right("answer")
-    }*/
+    }
   }
 }
