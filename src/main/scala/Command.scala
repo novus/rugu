@@ -1,7 +1,6 @@
 package com.novus.rugu
 
 import java.io.{
-  BufferedInputStream,
   BufferedReader,
   InputStream
 }
@@ -16,14 +15,14 @@ object `package` extends LowPriorityProcessors {
   /* Pimps for String => Command. */
   implicit def string2Piped(s: String) = new CommandString(s)
   implicit def string2Discarded[Unit : StreamProcessor](s: String) = Piped(None, s, (_:Unit) => Unit)
-  
-  class CommandString(command: String) {
-    def :#|[I : StreamProcessor, O](f: I => O) = Piped(None, command, f)
-    def :|[O](f: String => O)(implicit ev: StreamProcessor[String]) = Piped(None, command, f)
-    def ::|[O](f: List[String] => O)(implicit ev: StreamProcessor[List[String]]) = Piped(None, command, f)
-    def :>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, false)
-    def :>>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, true)
-  }
+}
+
+private [rugu] class CommandString(command: String) {
+  def :#|[I : StreamProcessor, O](f: I => O) = Piped(None, command, f)
+  def :|[O](f: String => O)(implicit ev: StreamProcessor[String]) = Piped(None, command, f)
+  def ::|[O](f: List[String] => O)(implicit ev: StreamProcessor[List[String]]) = Piped(None, command, f)
+  def :>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, false)
+  def :>>(file: String)(implicit ev: StreamProcessor[BufferedReader]) = FileRedirect(None, command, file, true)
 }
 
 /** A command to be executed in the remote shell. A Command[I, O] embodies
@@ -44,8 +43,8 @@ case class Piped[I, O](input: Option[String], command: String, f: I => O) extend
 }
 
 /** Redirect output (as a character stream) to a file. */
-case class FileRedirect(input: Option[String], command: String, name: String, append: Boolean) extends Command[BufferedInputStream, Unit] {
-  def apply(in: BufferedInputStream) =
+case class FileRedirect(input: Option[String], command: String, name: String, append: Boolean) extends Command[BufferedReader, Unit] {
+  def apply(in: BufferedReader) =
     IO(in) { r =>
       IO(new java.io.BufferedWriter(new java.io.FileWriter(name, append))) { w =>
         var line: String = null
