@@ -4,13 +4,14 @@ import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.connection.channel.direct.Session
 import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import scala.util.control.Exception.allCatch
+import java.io.InputStream
 
 case class Host(name: String, port: Int = 22)
 
 object Ssh {
   
   trait Executor {
-    def apply[A](command: Command[_, A])(f: java.io.InputStream => A): Either[Throwable, (Option[Int], A, String)]
+    def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)]
   }
   
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None) = {
@@ -19,25 +20,25 @@ object Ssh {
     val executor = auth match {
       case UsernameAndPassword(u, p) =>
         new Executor {
-          def apply[A](command: Command[_, A])(f: java.io.InputStream => A): Either[Throwable, (Option[Int], A, String)] = {
+          def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)] = {
+            /* Add any host keys. */
             val ssh = new SSHClient()
             hostVerifier.foreach(ssh.addHostKeyVerifier(_))
-            
-            allCatch.either {
-              ssh.connect(host.name, host.port) //BOOM
-              ssh.authPassword(u, p) //BOOM
-              val s = ssh.startSession() // BOOM
-              val c = s.exec(command.command) //BOOM
-              command.input.foreach { in =>
-                IO(c.getOutputStream()) { _.write(in.getBytes())} //BOOM
+            allCatch.andFinally(ssh.disconnect()).either {
+              /* Connect and authenticate. */
+              ssh.connect(host.name, host.port)
+              ssh.authPassword(u, p)
+              IO(ssh.startSession()) { s =>
+                val c = s.exec(command.command)
+                command.input.foreach { in =>
+                  IO(c.getOutputStream()) { _.write(in.getBytes()) }
+                }
+                val a = f(c.getInputStream())
+                val err = scala.io.Source.fromInputStream(c.getErrorStream()).mkString
+                c.join(5, java.util.concurrent.TimeUnit.SECONDS) //TODO
+                (Option(c.getExitStatus).map(_.intValue), a, err)
               }
-              val a = f(c.getInputStream()) //BOOM
-              val err = scala.io.Source.fromInputStream(c.getErrorStream()).mkString
-              c.join(5, java.util.concurrent.TimeUnit.SECONDS) //TODO
-              s.close() //BOOM
-              ssh.disconnect() //BOOM
-              (Option(c.getExitStatus).map(_.intValue), a, err)
-            }
+            }.fold(Left(_), identity)
           }
         }
     }
@@ -54,7 +55,6 @@ class SshSession(executor: Ssh.Executor) {
   def exec[I, O, OO](c: Command[I, O])(f: ((Option[Int], O, String)) => OO)(implicit sp: StreamProcessor[I]) =
     remote(c, sp).fold(Left(_), r => Right(f(r)))
   
-  /* Left[Throwable] on network error. */
   def remote[I, O](c: Command[I, O], sp: StreamProcessor[I]): Either[Throwable, (Option[Int], O, String)] =
     executor(c)(sp andThen c)
 }
