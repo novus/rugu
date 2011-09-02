@@ -52,7 +52,7 @@ object Ssh {
 }
 
 class SshSession(executor: Executor) {
-  def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]): Either[Throwable, O] =
+  def apply[I : StreamProcessor, O](c: Command[I, O]): Either[Throwable, O] =
     exec(c)(identity).fold(
       Left(_), {
         case (Some(0), o, os) => Right(o)

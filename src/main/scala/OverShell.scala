@@ -11,7 +11,7 @@ class OverShell(sessions: Seq[SshSession]) {
   val execSvc = Executors.newFixedThreadPool(cpus * 4)
   
   import scala.collection.JavaConversions._ //FIXME saner conversions
-  def apply[I, O](c: Command[I, O])(implicit sp: StreamProcessor[I]): Seq[Future[Either[Throwable, O]]] =
+  def apply[I : StreamProcessor, O](c: Command[I, O]): Seq[Future[Either[Throwable, O]]] =
     execSvc.invokeAll {
       sessions.map { ssh =>
         new Callable[Either[Throwable, O]] { def call = ssh(c) }
