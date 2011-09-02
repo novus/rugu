@@ -4,6 +4,9 @@ import org.specs2.mutable._
 import java.io.ByteArrayInputStream
 
 class RemoteCommandSpec extends Specification {
+  val hostCfg = new java.io.File("tests.properties")
+  args(skipAll = !hostCfg.exists)
+  
   val props = new java.util.Properties()
   props.load(new java.io.FileInputStream("tests.properties"))
   val host = props.getProperty("localhost.host", "localhost")
