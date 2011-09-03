@@ -13,8 +13,10 @@ trait Executor {
 case class Host(name: String, port: Int = 22)
 
 object Ssh {
+  def apply(template: Template): SshSession =
+    apply(template.host, template.auth, template.knownHostsFile)
   
-  def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None) = {
+  def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None): SshSession = {
     val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
     
     val executor = new Executor {
@@ -27,8 +29,11 @@ object Ssh {
           /* Connect and authenticate. */
           ssh.connect(host.name, host.port)
           auth match {
-            case PublicKey(u, k) => ssh.authPublickey(u, k)
-            case UsernameAndPassword(u, p) => ssh.authPassword(u, p)
+            case PublicKey(u, k, pass) =>
+              val kp = pass.map(ssh.loadKeys(k, _)).getOrElse(ssh.loadKeys(k)) //FIXME don't load keys every time
+              ssh.authPublickey(u, kp)
+            case UsernameAndPassword(u, p) =>
+              ssh.authPassword(u, p)
           }
           IO(ssh.startSession()) { s =>
             /* Exec command with input if any, collect and transform output,
