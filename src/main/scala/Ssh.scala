@@ -4,7 +4,7 @@ import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.connection.channel.direct.Session
 import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import scala.util.control.Exception.allCatch
-import java.io.InputStream
+import java.io.{File, InputStream}
 
 trait Executor {
   def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)]
@@ -15,7 +15,7 @@ case class Host(name: String, port: Int = 22)
 object Ssh {
   
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None) = {
-    val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new java.io.File(f)))
+    val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
     
     val executor = new Executor {
       def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)] = {
