@@ -29,7 +29,7 @@ private [rugu] class CommandString(command: String) {
  *  both the command to be executed and the means by which the resulting
  *  output will be transformed.
  */
-sealed trait Command[I, O] extends (I => O) { self =>
+sealed trait Command[I, O] extends (I => O) {
   type C >: Command[I, O]
   val command: String
   val input: Option[String]

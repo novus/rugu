@@ -8,6 +8,8 @@ import java.io.{File, InputStream}
 
 trait Executor {
   def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)]
+  def upload(localFile: String, remotePath: String): Either[Throwable, Unit]
+  def download(remotePath: String, localFile: String): Either[Throwable, Unit]
 }
 
 case class Host(name: String, port: Int = 22)
@@ -20,11 +22,9 @@ object Ssh {
     val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
     
     val executor = new Executor {
-      def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)] = {
-        /* Add any host keys. */
+      private def session[A](op: SSHClient => A): Either[Throwable, A] = {
         val ssh = new SSHClient()
         hostVerifier.foreach(ssh.addHostKeyVerifier(_))
-        
         allCatch.andFinally(ssh.disconnect()).either {
           /* Connect and authenticate. */
           ssh.connect(host.name, host.port)
@@ -35,6 +35,18 @@ object Ssh {
             case UsernameAndPassword(u, p) =>
               ssh.authPassword(u, p)
           }
+          op(ssh)
+        }
+      }
+      
+      def upload(localFile: String, remotePath: String) =
+        session(_.newSCPFileTransfer().upload(localFile, remotePath))
+      
+      def download(remotePath: String, localFile: String) =
+        session(_.newSCPFileTransfer().download(remotePath, localFile))
+      
+      def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)] = {
+        session { ssh =>
           IO(ssh.startSession()) { s =>
             /* Exec command with input if any, collect and transform output,
              * error output, and exit status if given.
@@ -66,6 +78,8 @@ class SshSession(executor: Executor) {
   
   def exec[I, O, OO](c: Command[I, O])(f: ((Option[Int], O, String)) => OO)(implicit sp: StreamProcessor[I]): Either[Throwable, OO] =
     executor(c)(sp andThen c).fold(Left(_), r => Right(f(r)))
+  def upload(localFile: String, remotePath: String) =
+    executor.upload(localFile, remotePath)
 }
 
 object IO {
