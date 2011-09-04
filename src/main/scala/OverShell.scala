@@ -5,16 +5,25 @@ import java.util.concurrent._
 case class Template(host: Host, auth: Authentication, knownHostsFile: Option[String] = None)
 
 class OverShell(sessions: Seq[SshSession]) {
-  val cpus = Runtime.getRuntime.availableProcessors
-  val execSvc = Executors.newFixedThreadPool(cpus * 4)
+  private val execSvc =
+    Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors * 4)
   
   import scala.collection.JavaConversions._ //FIXME saner conversions
   def apply[I : StreamProcessor, O](c: Command[I, O]): Seq[Future[Either[Throwable, O]]] = 
-    execSvc.invokeAll(callables(c))
+    invokeAll(_(c))
+  
+  def upload(localFile: String, remotePath: String) =
+    invokeAll(_.upload(localFile, remotePath))
     
-  def callables[I : StreamProcessor, O](c: Command[I, O]) =
+  def download(remotePath: String, localFile: String) =
+    invokeAll(_.download(remotePath, localFile))
+  
+  private def invokeAll[O](f: SshSession => Either[Throwable, O]): Seq[Future[Either[Throwable, O]]] =
+    execSvc.invokeAll(callables(f))
+  
+  private def callables[O](f: SshSession => Either[Throwable, O]) =
     sessions.map { ssh =>
-      new Callable[Either[Throwable, O]] { def call = ssh(c) }
+      new Callable[Either[Throwable, O]] { def call = f(ssh) }
     }
 }
 

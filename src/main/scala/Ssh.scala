@@ -19,9 +19,10 @@ object Ssh {
     apply(template.host, template.auth, template.knownHostsFile)
   
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None): SshSession = {
-    val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
-    
     val executor = new Executor {
+      /* Load host keys once. */
+      val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
+      
       private def session[A](op: SSHClient => A): Either[Throwable, A] = {
         val ssh = new SSHClient()
         hostVerifier.foreach(ssh.addHostKeyVerifier(_))
@@ -78,8 +79,12 @@ class SshSession(executor: Executor) {
   
   def exec[I, O, OO](c: Command[I, O])(f: ((Option[Int], O, String)) => OO)(implicit sp: StreamProcessor[I]): Either[Throwable, OO] =
     executor(c)(sp andThen c).fold(Left(_), r => Right(f(r)))
+
   def upload(localFile: String, remotePath: String) =
     executor.upload(localFile, remotePath)
+  
+  def download(remotePath: String, localFile: String) =
+    executor.download(remotePath, localFile)
 }
 
 object IO {
