@@ -7,7 +7,7 @@ case class Template(host: Host, auth: Authentication, knownHostsFile: Option[Str
 class OverShell(sessions: Seq[SshSession]) {
   private val execSvc =
     Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors * 4)
-  
+
   import scala.collection.JavaConversions._ //FIXME saner conversions
   def apply[I : StreamProcessor, O](c: Command[I, O]): Seq[Future[Either[Throwable, O]]] = 
     invokeAll(_(c))

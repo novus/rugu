@@ -6,12 +6,6 @@ import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import scala.util.control.Exception.allCatch
 import java.io.{File, InputStream}
 
-trait Executor {
-  def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)]
-  def upload(localFile: String, remotePath: String): Either[Throwable, Unit]
-  def download(remotePath: String, localFile: String): Either[Throwable, Unit]
-}
-
 case class Host(name: String, port: Int = 22)
 
 object Ssh {
@@ -23,7 +17,7 @@ object Ssh {
       /* Load host keys once. */
       val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
       
-      private def session[A](op: SSHClient => A): Either[Throwable, A] = {
+      private def withClient[A](op: SSHClient => A): Either[Throwable, A] = {
         val ssh = new SSHClient()
         hostVerifier.foreach(ssh.addHostKeyVerifier(_))
         allCatch.andFinally(ssh.disconnect()).either {
@@ -41,13 +35,13 @@ object Ssh {
       }
       
       def upload(localFile: String, remotePath: String) =
-        session(_.newSCPFileTransfer().upload(localFile, remotePath))
+        withClient(_.newSCPFileTransfer().upload(localFile, remotePath))
       
       def download(remotePath: String, localFile: String) =
-        session(_.newSCPFileTransfer().download(remotePath, localFile))
+        withClient(_.newSCPFileTransfer().download(remotePath, localFile))
       
       def apply[A](command: Command[_, A])(f: InputStream => A): Either[Throwable, (Option[Int], A, String)] = {
-        session { ssh =>
+        withClient { ssh =>
           IO(ssh.startSession()) { s =>
             /* Exec command with input if any, collect and transform output,
              * error output, and exit status if given.
@@ -85,10 +79,4 @@ class SshSession(executor: Executor) {
   
   def download(remotePath: String, localFile: String) =
     executor.download(remotePath, localFile)
-}
-
-object IO {
-  type Resource = { def close(): Unit }
-  def apply[A, R <: Resource](r: R)(op: R => A): Either[Throwable, A] =
-    allCatch.andFinally(r.close()).either(op(r))
 }
