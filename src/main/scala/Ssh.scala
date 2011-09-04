@@ -12,7 +12,7 @@ object Ssh {
   def apply(template: Template): SshSession =
     apply(template.host, template.auth, template.knownHostsFile)
   
-  def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None): SshSession = {
+  def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None, connectTimeout: Int = 0): SshSession = {
     val executor = new Executor {
       /* Load host keys once. */
       val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
@@ -20,8 +20,9 @@ object Ssh {
       private def withClient[A](op: SSHClient => A): Either[Throwable, A] = {
         val ssh = new SSHClient()
         hostVerifier.foreach(ssh.addHostKeyVerifier(_))
-        allCatch.andFinally(ssh.disconnect()).either {
+        allCatch.andFinally({if(ssh.isConnected) ssh.disconnect()}).either {
           /* Connect and authenticate. */
+          ssh.setConnectTimeout(connectTimeout)
           ssh.connect(host.name, host.port)
           auth match {
             case PublicKey(u, k, pass) =>
@@ -52,7 +53,7 @@ object Ssh {
             }
             val a = f(c.getInputStream())
             val err = scala.io.Source.fromInputStream(c.getErrorStream()).mkString
-            c.join(5, java.util.concurrent.TimeUnit.SECONDS) //TODO
+            //c.join(5, java.util.concurrent.TimeUnit.SECONDS) //TODO
             (Option(c.getExitStatus).map(_.intValue), a, err)
           }
         }.fold(Left(_), identity)
