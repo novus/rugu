@@ -9,8 +9,8 @@ import java.io.{File, InputStream}
 case class Host(name: String, port: Int = 22)
 
 object Ssh {
-  def apply(template: Template): SshSession =
-    apply(template.host, template.auth, template.knownHostsFile)
+  def apply(t: Template): SshSession =
+    apply(t.host, t.auth, t.knownHostsFile, t.connectTimeout)
   
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None, connectTimeout: Int = 0): SshSession = {
     val executor = new Executor {
