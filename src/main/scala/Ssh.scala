@@ -65,9 +65,9 @@ object Ssh {
 }
 
 class SshSession(executor: Executor) {
-  /** Execute a command and trap any exceptions as Lefts. Non-zero exit statuses
-   *  result in Lefts of RuntimeException and include the exit status and error
-   *  output. Blocks the calling thread.
+  /** Execute a remote command. Non-zero exit statuses result in Lefts of
+   *  RuntimeException and include the exit status and error output.
+   *  Blocks the calling thread.
    */
   def apply[I : StreamProcessor, O](c: Command[I, O]): Either[Throwable, O] =
     exec(c)(identity).fold(
@@ -75,10 +75,9 @@ class SshSession(executor: Executor) {
         case (Some(0), o, os) => Right(o)
         case (i, o, os) => Left(new RuntimeException("%d: %s".format(i.getOrElse(-1), os)))
       })
-  /** Execute a command and trap any exceptions as Lefts. No assumptions are
-   *  made about exit statuses; instead a handler for the result must decide,
-   * given the exit status, transformed successful result, and error output.
-   * Blocks the calling thread.
+  /** Execute a command. A handler for the result must decide how to proceed
+   *  based on the exit status, transformed successful result, and error output.
+   *  Blocks the calling thread.
    */
   def exec[I, O, OO](c: Command[I, O])(f: ((Option[Int], O, String)) => OO)(implicit sp: StreamProcessor[I]): Either[Throwable, OO] =
     executor(c)(sp andThen c).fold(Left(_), r => Right(f(r)))
