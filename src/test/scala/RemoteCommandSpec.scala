@@ -4,18 +4,8 @@ import org.specs2.mutable._
 import java.io.ByteArrayInputStream
 
 class RemoteCommandSpec extends Specification {
-  val hostCfg = new java.io.File("tests.properties")
-  args(skipAll = !hostCfg.exists)
-  
-  val props = new java.util.Properties()
-  props.load(new java.io.FileInputStream("tests.properties"))
-  val host = props.getProperty("localhost.host", "localhost")
-  val port = props.getProperty("localhost.port", "22").toInt
-  val user = props.getProperty("localhost.user", System.getProperty("user.name"))
-  val password = props.getProperty("localhost.password")
-  val knownHosts = Option(props.getProperty("localhost.knownHosts", null))
-  
-  val ssh = Ssh(Host(host, port), UsernameAndPassword(user, password), knownHosts)
+  args(skipAll = test.Hosts.single.isEmpty)
+  val ssh = test.Hosts.single.map(Ssh(_)).getOrElse(error("Corrupt properties!"))
   
   "An SshSession" should {
     "yield and echo'd string" in {

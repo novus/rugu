@@ -14,10 +14,10 @@ object `package` extends LowPriorityProcessors {
   
   /* Pimps for String => Command. */
   implicit def string2Piped(s: String) = new CommandString(s)
-  implicit def string2Discarded[Unit : StreamProcessor](s: String) = Piped(None, s, (_:Unit) => Unit)
+  implicit def string2Discarded(s: String)(implicit ev: StreamProcessor[Unit]) = Piped(None, s, (_:Unit) => ())
 }
 
-private [rugu] class CommandString(command: String) {
+private[rugu] class CommandString(command: String) {
   def :#|[I : StreamProcessor, O](f: I => O) = Piped(None, command, f)
   def :|[O](f: String => O)(implicit ev: StreamProcessor[String]) = Piped(None, command, f)
   def ::|[O](f: List[String] => O)(implicit ev: StreamProcessor[List[String]]) = Piped(None, command, f)
