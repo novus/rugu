@@ -5,7 +5,7 @@ import java.io.ByteArrayInputStream
 
 class RemoteCommandSpec extends Specification {
   args(skipAll = test.Hosts.single.isEmpty)
-  val ssh = test.Hosts.single.map(Ssh(_)).getOrElse(error("Corrupt properties!"))
+  lazy val ssh = test.Hosts.single.map(Ssh(_)).getOrElse(error("Corrupt properties!"))
   
   "An SshSession" should {
     "yield and echo'd string" in {
