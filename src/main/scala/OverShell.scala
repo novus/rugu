@@ -7,16 +7,19 @@ case class Template(host: Host, auth: Authentication, knownHostsFile: Option[Str
 class OverShell(sessions: Seq[SshSession]) {
   private val execSvc =
     Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors * 4)
+  
   /** Execute a command across all connections in parallel.
    *  Blocks the calling thread until executions complete. 
    */
   def apply[I : StreamProcessor, O](c: Command[I, O]): Seq[Future[Either[Throwable, O]]] = 
     invokeAll(_(c))
+  
   /** Upload a file via SCP to all connections in parallel.
    *  Blocks the calling thread until all uploads complete.
    */
   def upload(localFile: String, remotePath: String) =
     invokeAll(_.upload(localFile, remotePath))
+  
   /** Download a file via SCP from all connections in parallel.
    *  Blocks the calling thread until all uploads complete.
    */

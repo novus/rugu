@@ -16,7 +16,7 @@ class OverShellSpec extends Specification {
     }
     "upload and then remove a file" in {
       val remoteFile = "rugu-upload-%d-%d".format(
-          util.Random.nextInt(1000000), System.currentTimeMillis) 
+          scala.util.Random.nextInt(1000000), System.currentTimeMillis) 
       val uploadResults = overshell.upload("LICENSE.md", remoteFile)
       val rmResults = overshell("rm " + remoteFile)
       (rmResults ++ uploadResults).map(_.get).forall(_.isRight)

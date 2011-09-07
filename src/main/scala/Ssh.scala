@@ -75,15 +75,18 @@ class SshSession(executor: Executor) {
         case (Some(0), o, os) => Right(o)
         case (i, o, os) => Left(new RuntimeException("%d: %s".format(i.getOrElse(-1), os)))
       })
+      
   /** Execute a command. A handler for the result must decide how to proceed
    *  based on the exit status, transformed successful result, and error output.
    *  Blocks the calling thread.
    */
   def exec[I, O, OO](c: Command[I, O])(f: ((Option[Int], O, String)) => OO)(implicit sp: StreamProcessor[I]): Either[Throwable, OO] =
     executor(c)(sp andThen c).fold(Left(_), r => Right(f(r)))
+  
   /** Upload a file via SCP. Blocks the calling thread. */
   def upload(localFile: String, remotePath: String) =
     executor.upload(localFile, remotePath)
+  
   /** Download a file via SCP. Blocks the calling thread. */
   def download(remotePath: String, localFile: String) =
     executor.download(remotePath, localFile)
