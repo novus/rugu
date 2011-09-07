@@ -1,8 +1,14 @@
 package com.novus.rugu
 
+import net.schmizz.sshj.{Config, DefaultConfig}
 import java.util.concurrent._
 
-case class Template(host: Host, auth: Authentication, knownHostsFile: Option[String] = None, connectTimeout: Int = 0)
+case class Template(
+  host: Host,
+  auth: Authentication,
+  knownHostsFile: Option[String] = None,
+  connectTimeout: Int = 0,
+  config: Option[Config] = None)
 
 class OverShell(sessions: Seq[SshSession]) {
   private val execSvc =
@@ -44,6 +50,10 @@ object OverShell {
       (t, l) => Ssh(f(ssh, t)) :: l
     })
   
-  def stageHosts(hosts: Seq[String])(ssh: Template) =
-    stage(hosts)(ssh) { (t, h) => t.copy(host = Host(h)) }
+  def stageHosts(hosts: Seq[String])(ssh: Template) = {
+    val cfgd = ssh.copy(config = ssh.config.orElse(Some(new DefaultConfig())))
+    stage(hosts)(cfgd) {
+      (t, h) => t.copy(host = Host(h))
+    }
+  }
 }

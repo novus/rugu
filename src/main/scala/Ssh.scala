@@ -1,6 +1,6 @@
 package com.novus.rugu
 
-import net.schmizz.sshj.SSHClient
+import net.schmizz.sshj.{Config, DefaultConfig, SSHClient}
 import net.schmizz.sshj.connection.channel.direct.Session
 import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import scala.util.control.Exception.allCatch
@@ -10,15 +10,16 @@ case class Host(name: String, port: Int = 22)
 
 object Ssh {
   def apply(t: Template): SshSession =
-    apply(t.host, t.auth, t.knownHostsFile, t.connectTimeout)
+    apply(t.host, t.auth, t.knownHostsFile, t.connectTimeout, t.config)
   
-  def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None, connectTimeout: Int = 0): SshSession = {
+  def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None, connectTimeout: Int = 0, config: Option[Config]): SshSession = {
     val executor = new Executor {
       /* Load host keys once. */
       val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
+      val cfg = config.getOrElse(new DefaultConfig())
       
       private def withClient[A](op: SSHClient => A): Either[Throwable, A] = {
-        val ssh = new SSHClient()
+        val ssh = new SSHClient(cfg)
         hostVerifier.foreach(ssh.addHostKeyVerifier(_))
         allCatch.andFinally({if(ssh.isConnected) ssh.disconnect()}).either {
           /* Connect and authenticate. */
