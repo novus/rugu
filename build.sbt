@@ -9,7 +9,7 @@ scalaVersion := "2.9.0-1"
 libraryDependencies ++= Seq(
   "net.schmizz" % "sshj" % "0.5.0",
   "org.bouncycastle" % "bcprov-jdk16" % "1.46",
-  "org.specs2" %% "specs2" % "1.5",
+  "org.specs2" %% "specs2" % "1.5" % "test",
   // with Scala 2.8.1
   "org.specs2" %% "specs2-scalaz-core" % "5.1-SNAPSHOT" % "test"
   // with Scala 2.9.0
