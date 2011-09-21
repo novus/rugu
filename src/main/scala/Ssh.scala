@@ -15,11 +15,9 @@ object Ssh {
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None, connectTimeout: Int = 0, config: Option[Config]): SshSession = {
     val executor = new Executor {
       /* Load host keys once. */
-      val hostVerifier = knownHostsFile match {
-        // Allow any host (i.e. ignore knownHosts file)
-        case None => new PromiscuousVerifier()
-        case Some(file) => new OpenSSHKnownHosts(new File(file))
-      }
+      val hostVerifier = knownHostsFile
+        .map(OpenSSHKnownHosts(new File(_))
+        .getOrElse(new PromiscuousVerifier)
       val cfg = config.getOrElse(new DefaultConfig())
       
       private def withClient[A](op: SSHClient => A): Either[Throwable, A] = {
