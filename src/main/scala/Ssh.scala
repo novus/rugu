@@ -2,9 +2,9 @@ package com.novus.rugu
 
 import net.schmizz.sshj.{Config, DefaultConfig, SSHClient}
 import net.schmizz.sshj.connection.channel.direct.Session
-import net.schmizz.sshj.transport.verification.OpenSSHKnownHosts
 import scala.util.control.Exception.allCatch
 import java.io.{File, InputStream}
+import net.schmizz.sshj.transport.verification.{PromiscuousVerifier, OpenSSHKnownHosts}
 
 case class Host(name: String, port: Int = 22)
 
@@ -15,12 +15,16 @@ object Ssh {
   def apply(host: Host, auth: Authentication, knownHostsFile: Option[String] = None, connectTimeout: Int = 0, config: Option[Config]): SshSession = {
     val executor = new Executor {
       /* Load host keys once. */
-      val hostVerifier = knownHostsFile.map(f => new OpenSSHKnownHosts(new File(f)))
+      val hostVerifier = knownHostsFile match {
+        // Allow any host (i.e. ignore knownHosts file)
+        case None => new PromiscuousVerifier()
+        case Some(file) => new OpenSSHKnownHosts(new File(file))
+      }
       val cfg = config.getOrElse(new DefaultConfig())
       
       private def withClient[A](op: SSHClient => A): Either[Throwable, A] = {
         val ssh = new SSHClient(cfg)
-        hostVerifier.foreach(ssh.addHostKeyVerifier(_))
+        ssh.addHostKeyVerifier(hostVerifier)
         allCatch.andFinally({if(ssh.isConnected) ssh.disconnect()}).either {
           /* Connect and authenticate. */
           ssh.setConnectTimeout(connectTimeout)
