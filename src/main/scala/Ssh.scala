@@ -16,7 +16,7 @@ object Ssh {
     val executor = new Executor {
       /* Load host keys once. */
       val hostVerifier = knownHostsFile
-        .map(OpenSSHKnownHosts(new File(_))
+        .map(h => new OpenSSHKnownHosts(new File(h)))
         .getOrElse(new PromiscuousVerifier)
       val cfg = config.getOrElse(new DefaultConfig())
       
